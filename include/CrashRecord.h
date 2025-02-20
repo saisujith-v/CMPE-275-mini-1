@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <string_view>
-
+#include <ctime>  // Required for std::tm
 
 class CrashRecord {
 public:
@@ -15,11 +15,14 @@ public:
     // Getters for search operations
     std::string getBorough() const;
     int getPersonsInjured() const;
-    std::string getCrashDate() const;  // Add this getter for the Date Range search
+    
+    // Date and time related getters
+    std::string getCrashDate() const;  // Returns formatted date string
+    std::string getCrashTime() const;  // Returns formatted time string
+    std::tm getCrashDateTimeTm() const; // Returns the full `std::tm` object with date and time
 
 private:
-    std::string crashDate;
-    std::string crashTime;
+    std::tm crashDateTime;  // Now using std::tm instead of std::string for date and time
     std::string borough;
     int zipCode;
     float latitude;
@@ -27,10 +30,5 @@ private:
     std::string onStreetName;
     int numberOfPersonsInjured;
 };
-
-// Function declarations for searching records
-std::vector<CrashRecord> searchByBorough(const std::vector<CrashRecord>& records, const std::string& borough);
-std::vector<CrashRecord> searchByDateRange(const std::vector<CrashRecord>& records, const std::string& startDate, const std::string& endDate);
-std::vector<CrashRecord> searchByInjuryCount(const std::vector<CrashRecord>& records, int minInjuryCount);
 
 #endif // CRASHRECORD_H
