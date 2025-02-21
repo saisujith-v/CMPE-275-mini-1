@@ -6,16 +6,29 @@
 #include "DateUtils.h"
 #include <iostream>
 #include "DateTimeParser.h"
+#include <omp.h>
 
 // Search by Borough Strategy
 SearchByBoroughStrategy::SearchByBoroughStrategy(const std::string& borough) : borough(borough) {}
 
 std::vector<CrashRecord> SearchByBoroughStrategy::execute(const std::vector<CrashRecord>& records) {
     std::vector<CrashRecord> results;
-    for (const auto& record : records) {
-        if (record.getBorough() == borough) {
-            results.push_back(record);
+
+    int num_threads = 5; // Set desired number of threads
+    omp_set_num_threads(num_threads);
+    std::cout << "Number of threads: " << omp_get_max_threads() << std::endl;
+    #pragma omp parallel
+    {
+        std::vector<CrashRecord> localResults;
+        #pragma omp for nowait
+        for (size_t i = 0; i < records.size(); ++i) {
+            if (records[i].getBorough() == borough) {
+                localResults.push_back(records[i]);
+            }
         }
+
+        #pragma omp critical
+        results.insert(results.end(), localResults.begin(), localResults.end());
     }
     return results;
 }
@@ -25,10 +38,19 @@ SearchByInjuryCountStrategy::SearchByInjuryCountStrategy(int minInjuryCount) : m
 
 std::vector<CrashRecord> SearchByInjuryCountStrategy::execute(const std::vector<CrashRecord>& records) {
     std::vector<CrashRecord> results;
-    for (const auto& record : records) {
-        if (record.getPersonsInjured() >= minInjuryCount) {
-            results.push_back(record);
+
+    #pragma omp parallel num_threads(5)
+    {
+        std::vector<CrashRecord> localResults;
+        #pragma omp for nowait
+        for (size_t i = 0; i < records.size(); ++i) {
+            if (records[i].getPersonsInjured() >= minInjuryCount) {
+                localResults.push_back(records[i]);
+            }
         }
+
+        #pragma omp critical
+        results.insert(results.end(), localResults.begin(), localResults.end());
     }
     return results;
 }
@@ -37,31 +59,26 @@ std::vector<CrashRecord> SearchByInjuryCountStrategy::execute(const std::vector<
 SearchByDateRangeStrategy::SearchByDateRangeStrategy(const std::string& startDate, const std::string& endDate)
     : startDate(startDate), endDate(endDate) {}
 
-// Function to parse a date string (MM/DD/YYYY) into a `std::tm` struct
-std::tm parseDate(const std::string& dateStr) {
-    std::tm tmDate = {};
-    std::istringstream ss(dateStr);
-    ss >> std::get_time(&tmDate, "%m/%d/%Y"); // Format: MM/DD/YYYY
-
-    if (ss.fail()) {
-        throw std::runtime_error("Invalid date format: " + dateStr);
-    }
-    return tmDate;
-}
-
 std::vector<CrashRecord> SearchByDateRangeStrategy::execute(const std::vector<CrashRecord>& records) {
     std::vector<CrashRecord> results;
 
     std::tm startTm = parseDateTime(startDate, "00:00");
     std::tm endTm = parseDateTime(endDate, "23:59");
 
-    for (const auto& record : records) {
-        std::tm recordTm = record.getCrashDateTimeTm(); // Get the std::tm object from the record
+    #pragma omp parallel num_threads(5)
+    {
+        std::vector<CrashRecord> localResults;
+        #pragma omp for nowait
+        for (size_t i = 0; i < records.size(); ++i) {
+            std::tm recordTm = records[i].getCrashDateTimeTm();
 
-        // Directly compare std::tm objects using overloaded operators
-        if (!(recordTm < startTm) && !(endTm < recordTm)) {
-            results.push_back(record);
+            if (!(recordTm < startTm) && !(endTm < recordTm)) {
+                localResults.push_back(records[i]);
+            }
         }
+
+        #pragma omp critical
+        results.insert(results.end(), localResults.begin(), localResults.end());
     }
 
     return results;
