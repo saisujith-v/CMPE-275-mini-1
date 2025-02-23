@@ -2,10 +2,12 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <chrono>
+#include <omp.h>
 
 // Split function to handle CSV parsing with a fixed size of 29 tokens
 std::vector<std::string_view> split(std::string_view line, char delimiter) {
-    const size_t fixed_size = 29;  // Fixed number of columns expected
+    const size_t fixed_size = 30;  // Fixed number of columns expected
     std::vector<std::string_view> tokens(fixed_size);  // Initialize with 29 empty elements
 
     size_t start = 0;
@@ -26,37 +28,46 @@ std::vector<std::string_view> split(std::string_view line, char delimiter) {
     return tokens;
 }
 
+
 // Constructor that reads the data from CSV
 CrashRecordFacade::CrashRecordFacade(const std::string& filename) {
-    std::cout << "Attempting to open file: " << filename << std::endl;
-
     std::ifstream file(filename);
-    
-    // Check if file exists and is open
     if (!file.is_open()) {
-        std::cerr << "Error: File not found or could not be opened: " << filename << std::endl;
+        std::cerr << "Error: File not found or could not be opened: " 
+                  << filename << std::endl;
         return;
-    } else {
-        std::cout << "File opened successfully: " << filename << std::endl;
     }
+    std::cout << "File opened successfully: " << filename << std::endl;
 
+    // Read lines into memory
+    std::vector<std::string> lines;
     std::string line;
-    // Skip the header
+
+    // Skip header
     std::getline(file, line);
 
-    int count = 0;
     while (std::getline(file, line)) {
-        std::vector<std::string_view> data = split(line, ',');  // Split the line by comma
-        count++;
-        std::cout<< "Processing record: " << count << std::endl;
-        records.emplace_back(data);  // Pass the data vector which contains string_view objects
+        lines.push_back(line);
     }
-    
-    std::cout << "Total records processed: " << count << std::endl;
-
     file.close();
+
+    std::cout << "File read completed, processing " << lines.size() << " records..." << std::endl;
+    // Preallocate space for records
+    auto record_size = lines.size();
+    records.resize(record_size);
+    omp_set_num_threads(5);
+    // Parallel parse
+    #pragma omp parallel for
+    for (long long i = 0; i < static_cast<long long>(lines.size()); i++) {
+        // Split line into tokens (string_view)
+        std::vector<std::string_view> dataViews = split(lines[i], ',');
+        records[i] = CrashRecord(dataViews);
+    }
+    std::cout << "File Processing number of threads: " << omp_get_max_threads() << std::endl;
+    std::cout << "Total records processed: " << lines.size() << std::endl;
     std::cout << "File closed: " << filename << std::endl;
 }
+
 
 
 // Perform the search using a given strategy
