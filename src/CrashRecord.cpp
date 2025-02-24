@@ -56,12 +56,11 @@ CrashRecord::CrashRecord(const std::vector<std::string_view>& data) {
     
     // Safe conversion for number of persons injured
     try {
-        numberOfPersonsInjured = data[10].empty() ? 0 : std::stoi(std::string(data[10]));  // Convert string_view to string
+        numberOfPersonsInjured = data[11].empty() ? 0 : std::stoi(std::string(data[11]));  // Convert string_view to string
     } catch (const std::invalid_argument& e) {
         std::cerr << "Invalid argument for number of persons injured: " << data[10] << ", setting to 0." << std::endl;
         numberOfPersonsInjured = 0;
     } catch (const std::out_of_range& e) {
-        std::cerr << "Out of range value for number of persons injured: " << data[10] << ", setting to 0." << std::endl;
         numberOfPersonsInjured = 0;
     }
 }

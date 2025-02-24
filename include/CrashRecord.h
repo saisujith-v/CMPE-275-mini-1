@@ -8,6 +8,7 @@
 
 class CrashRecord {
 public:
+    CrashRecord() = default;  // Default constructor
     CrashRecord(const std::vector<std::string_view>& data);
     
     void printRecord() const;
